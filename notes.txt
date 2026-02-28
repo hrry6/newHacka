@@ -1,0 +1,73 @@
+GET : http://localhost:5000/api/transactions/user/11b54320-319a-4113-8d9a-ff7faed98b06
+
+Expected Output
+{
+    "success": true,
+    "count": 4,
+    "data": [
+        {
+            "id": "869f9baa-ead7-41d1-9518-0fcc30610ad2",
+            "amount": "3000000.00",
+            "sender_id": "11b54320-319a-4113-8d9a-ff7faed98b06",
+            "receiver_id": "109dd170-7181-4dee-b0f3-1904a515a09a",
+            "message": "App Store Deployment Service",
+            "payload": {
+                "invoice_no": "INV-006",
+                "item": "Deployment",
+                "provider": "Paylabs"
+            },
+            "cid": "QmPv2cYqJ4qv5x8mcLKThVmDEdffH77oh5KxPF5w8uHxQm",
+            "tx_hash": "0x8d90231bb7119bb14d11c15f3733bf71652a90d806b02afb0aebd4053c0f83a8",
+            "verified_status": "VERIFIED",
+            "created_at": "2026-02-28T03:40:42.559Z"
+        },
+        {
+            "id": "271762fc-dc75-46c9-b5b0-babdd8c7ab1f",
+            "amount": "50000.00",
+            "sender_id": "11b54320-319a-4113-8d9a-ff7faed98b06",
+            "receiver_id": "109dd170-7181-4dee-b0f3-1904a515a09a",
+            "message": "Cloud Hosting Monthly Payment",
+            "payload": {
+                "invoice_no": "INV-005",
+                "item": "Cloud VPS High",
+                "provider": "Paylabs"
+            },
+            "cid": "QmSfSwbv9WYjUsTrKQ8P9BtZC1WC5HbfUi1BTFG3rEPuTc",
+            "tx_hash": "0x96f27b2a1c90c6cfdebdfb280504746af0777c9f873860e68347cb8461681509",
+            "verified_status": "VERIFIED",
+            "created_at": "2026-02-28T03:40:26.816Z"
+        },
+        {
+            "id": "ac0b87c8-93ef-4376-be00-696b670065d6",
+            "amount": "50000.00",
+            "sender_id": "ec95c3bb-8fa4-4cf2-9ca8-026347344024",
+            "receiver_id": "11b54320-319a-4113-8d9a-ff7faed98b06",
+            "message": "Technical Consultation Fee",
+            "payload": {
+                "invoice_no": "INV-003",
+                "item": "Consultancy",
+                "provider": "Paylabs"
+            },
+            "cid": "QmXnTZYbA1raJJXhGBub5LmMniqYupxZcPNGLSyo7fdWTX",
+            "tx_hash": "0xc0191825b05365d579e61ec46d8e5c3a558f7813e02f903b4c5ac7656745635f",
+            "verified_status": "VERIFIED",
+            "created_at": "2026-02-28T03:39:50.974Z"
+        },
+        {
+            "id": "9bb50aa4-b84f-4b65-a2d3-bfd9c5d6cc4e",
+            "amount": "150000.00",
+            "sender_id": "109dd170-7181-4dee-b0f3-1904a515a09a",
+            "receiver_id": "11b54320-319a-4113-8d9a-ff7faed98b06",
+            "message": "Monthly AI License Subscription",
+            "payload": {
+                "invoice_no": "INV-001",
+                "item": "AI API Access",
+                "provider": "Paylabs"
+            },
+            "cid": "QmX2ve6sPwagSz9tCxz8zQAyZEsBX6cipENiDQdE6QSMp7",
+            "tx_hash": "0x98cfa46e35db4a74e85daa89383dea322892e2b788871cf156a797bb21c59cef",
+            "verified_status": "VERIFIED",
+            "created_at": "2026-02-28T03:36:30.226Z"
+        }
+    ]
+}
