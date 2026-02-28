@@ -2,7 +2,6 @@ const pool = require('../config/db');
 const axios = require('axios');
 const { getTransactionFromChain } = require('../services/blockchain');
 
-// Fungsi helper untuk memberi jeda (agar tidak kena error 429)
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const createTransaction = async (req, res) => {
@@ -79,11 +78,11 @@ const createTransaction = async (req, res) => {
 };
 
 const getVerifiedTransactions = async (req, res) => {
-  const { userId } = req.params;
+  const userId = req.user.id; 
   const client = await pool.connect();
 
   try {
-    // 1. Ambil data dari Postgres
+    // 1. Ambil data transaksi dari Postgres
     const dbRes = await client.query(
       `SELECT * FROM transactions 
        WHERE sender_id = $1 OR receiver_id = $1 
@@ -94,13 +93,12 @@ const getVerifiedTransactions = async (req, res) => {
     const transactions = dbRes.rows;
     const verifiedResults = [];
 
-    console.log(`🔍 Memproses ${transactions.length} transaksi...`);
-
     for (const item of transactions) {
       try {
+        // Sleep untuk menghindari rate limit Pinata
         await sleep(800);
 
-        // Ambil data dari IPFS
+        // 2. Ambil data pembanding dari IPFS
         const ipfsResponse = await axios.get(`https://gateway.pinata.cloud/ipfs/${item.cid}`, {
           headers: {
             'Authorization': `Bearer ${process.env.PINATA_READ_JWT}`
@@ -109,17 +107,14 @@ const getVerifiedTransactions = async (req, res) => {
         });
         const ipfsData = ipfsResponse.data;
 
-        // Validasi Payload (Bandingkan data dari IPFS dengan database)
+        // 3. Validasi Payload (Integritas Data)
         const dbPayloadStr = typeof item.encrypted_payload === 'string' 
           ? item.encrypted_payload 
           : JSON.stringify(item.encrypted_payload);
         
-        const isPayloadValid = JSON.stringify(ipfsData.payload) === dbPayloadStr;
+        const ipfsPayloadStr = JSON.stringify(ipfsData.payload);
+        const isPayloadValid = ipfsPayloadStr === dbPayloadStr;
 
-        console.log(`--- TX: ${item.id.substring(0,8)} ---`);
-        console.log(`Payload Match: ${isPayloadValid}`);
-
-        // Masukkan semua transaksi, beri status berdasarkan validasi payload
         verifiedResults.push({
           id: item.id,
           amount: item.amount,
@@ -134,8 +129,7 @@ const getVerifiedTransactions = async (req, res) => {
         });
 
       } catch (err) {
-        console.error(`⚠️ Gagal ambil data dari IPFS untuk TX ${item.id}: ${err.message}`);
-        // Tetap masukkan transaksi walau IPFS gagal
+
         verifiedResults.push({
           id: item.id,
           amount: item.amount,
@@ -146,19 +140,10 @@ const getVerifiedTransactions = async (req, res) => {
           cid: item.cid,
           tx_hash: item.blockchain_tx_hash,
           verified_status: "IPFS_ERROR",
-          created_at: item.created_at,
-          error: err.message
+          created_at: item.created_at
         });
       }
     }
-
-    // Ringkasan
-    console.log("\n=== RINGKASAN VERIFIKASI ===");
-    console.log(`Total: ${verifiedResults.length}`);
-    console.log(`Verified: ${verifiedResults.filter(tx => tx.verified_status === "VERIFIED").length}`);
-    console.log(`Invalid: ${verifiedResults.filter(tx => tx.verified_status === "INVALID").length}`);
-    console.log(`IPFS Error: ${verifiedResults.filter(tx => tx.verified_status === "IPFS_ERROR").length}`);
-    console.log("============================\n");
 
     res.status(200).json({
       success: true,
@@ -167,14 +152,13 @@ const getVerifiedTransactions = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("🔥 Fetch Error:", error.message);
     res.status(500).json({ 
       success: false, 
-      error: error.message 
+      error: "Internal Server Error" 
     });
   } finally {
     client.release();
   }
 };
 
-module.exports = { createTransaction, getVerifiedTransactions };
+module.exports = {createTransaction, getVerifiedTransactions};
