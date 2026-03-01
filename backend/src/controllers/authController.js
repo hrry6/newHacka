@@ -55,7 +55,6 @@ const getUserByShareId = async (req, res) => {
     const client = await pool.connect();
 
     try {
-        // 1. Cek user dengan share_id
         const userQuery = await client.query(
             'SELECT id, company_name, email, created_at FROM users WHERE share_id = $1 AND share_enabled = TRUE',
             [shareId]
@@ -70,7 +69,6 @@ const getUserByShareId = async (req, res) => {
 
         const user = userQuery.rows[0];
 
-        // 2. Ambil transaksi dengan JOIN untuk ambil nama perusahaan
         const txRes = await client.query(
             `SELECT 
                 t.amount,
@@ -87,7 +85,6 @@ const getUserByShareId = async (req, res) => {
             [user.id]
         );
 
-        // 3. Format transaksi simpel (tanpa verifikasi IPFS biar cepet)
         const transactions = txRes.rows.map(item => ({
             pengirim: item.sender_name,
             penerima: item.receiver_name,
@@ -97,7 +94,9 @@ const getUserByShareId = async (req, res) => {
             tipe_pembayaran: item.payment_type
         }));
 
-        // 4. Return dengan format yang SAMA PERSIS
+        const total_transaksi = transactions.length;
+        const total_nilai = transactions.reduce((sum, item) => sum + item.nominal, 0);
+
         res.json({
             success: true,
             data: {
@@ -106,6 +105,10 @@ const getUserByShareId = async (req, res) => {
                     company_name: user.company_name,
                     email: user.email,
                     created_at: user.created_at
+                },
+                ringkasan: {
+                    total_transaksi: total_transaksi,
+                    total_nilai: total_nilai
                 },
                 transactions: transactions
             }
@@ -121,6 +124,5 @@ const getUserByShareId = async (req, res) => {
         client.release();
     }
 };
-
 
 module.exports = { register, login, generateShareId, deleteShareId, getUserByShareId };

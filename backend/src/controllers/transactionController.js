@@ -82,14 +82,12 @@ const getVerifiedTransactions = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    // 1. Ambil data user yang login
     const userRes = await client.query(
       `SELECT id, company_name, email, share_enabled, share_id, created_at FROM users WHERE id = $1`,
       [userId]
     );
     const userData = userRes.rows[0];
 
-    // 2. Ambil data transaksi dengan JOIN untuk ambil nama perusahaan
     const dbRes = await client.query(
       `SELECT 
         t.amount,
@@ -116,10 +114,18 @@ const getVerifiedTransactions = async (req, res) => {
       tipe_pembayaran: item.payment_type
     }));
 
+    // Hitung total transaksi dan total nilai
+    const total_transaksi = transactions.length;
+    const total_nilai = transactions.reduce((sum, item) => sum + item.nominal, 0);
+
     res.status(200).json({
       success: true,
       data: {
         user: userData,
+        ringkasan: {
+          total_transaksi: total_transaksi,
+          total_nilai: total_nilai
+        },
         transactions: transactions
       }
     });
