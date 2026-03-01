@@ -13,8 +13,8 @@ app.use(express.json());
 app.get('/ping', (req, res) => res.send('Pong! 🚀'));
 app.post('/api/auth/register', register);
 app.post('/api/auth/login', login);
-app.get('/api/public/share/:shareId', getUserByShareId);
 
+app.get('/api/public/share/:shareId',authMiddleware, getUserByShareId);
 app.post('/api/user/share/generate', authMiddleware, generateShareId);
 app.delete('/api/user/share/delete', authMiddleware, deleteShareId);
 app.post('/api/transactions', createTransaction);

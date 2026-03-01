@@ -56,22 +56,77 @@ const getUserByShareId = async (req, res) => {
     const client = await pool.connect();
 
     try {
-        // 1. Cek user dengan share_id
-        const userQuery = await client.query(
-            'SELECT id, company_name, email, created_at FROM users WHERE share_id = $1 AND share_enabled = TRUE',
-            [shareId]
-        );
+        let userId;
+        let user;
+        let accessType;
 
-        if (userQuery.rows.length === 0) {
-            return res.status(404).json({ 
-                success: false,
-                message: "Public profile not found or disabled" 
-            });
+        if (shareId === 'my_data') {
+            accessType = 'private';
+
+            const token = req.headers.authorization?.split(' ')[1];
+            if (!token) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Unauthorized: Token tidak ditemukan"
+                });
+            }
+
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                userId = decoded.id || decoded.userId || decoded.sub;
+
+                if (!userId) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Unauthorized: Invalid token payload"
+                    });
+                }
+
+                const userQuery = await client.query(
+                    `SELECT id, company_name, email, created_at, share_enabled, share_id 
+                     FROM users 
+                     WHERE id = $1`,
+                    [userId]
+                );
+
+                if (userQuery.rows.length === 0) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "User not found"
+                    });
+                }
+
+                user = userQuery.rows[0];
+
+            } catch (jwtError) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Unauthorized: Invalid token"
+                });
+            }
+
+        } else {
+            accessType = 'public';
+
+            const userQuery = await client.query(
+                `SELECT id, company_name, email, created_at, share_enabled, share_id 
+                 FROM users 
+                 WHERE share_id = $1 AND share_enabled = TRUE`,
+                [shareId]
+            );
+
+            if (userQuery.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Public profile not found or disabled"
+                });
+            }
+
+            user = userQuery.rows[0];
+            userId = user.id;
         }
 
-        const user = userQuery.rows[0];
-
-        // 2. Ambil semua transaksi user
+        // Ambil transaksi yang melibatkan user sebagai sender ATAU receiver
         const txRes = await client.query(
             `SELECT 
                 t.id,
@@ -89,9 +144,9 @@ const getUserByShareId = async (req, res) => {
             FROM transactions t
             LEFT JOIN users sender ON t.sender_id = sender.id
             LEFT JOIN users receiver ON t.receiver_id = receiver.id
-            WHERE t.sender_id = $1 OR t.receiver_id = $1 
+            WHERE t.sender_id = $1 OR t.receiver_id = $1
             ORDER BY t.created_at DESC`,
-            [user.id]
+            [userId]
         );
 
         const transactions = txRes.rows;
@@ -101,10 +156,14 @@ const getUserByShareId = async (req, res) => {
             try {
                 await sleep(800);
 
-                const ipfsResponse = await axios.get(`https://gateway.pinata.cloud/ipfs/${item.cid}`, {
-                    headers: { 'Authorization': `Bearer ${process.env.PINATA_READ_JWT}` },
-                    timeout: 15000
-                });
+                const ipfsResponse = await axios.get(
+                    `https://gateway.pinata.cloud/ipfs/${item.cid}`,
+                    {
+                        headers: { 'Authorization': `Bearer ${process.env.PINATA_READ_JWT}` },
+                        timeout: 15000
+                    }
+                );
+
                 const ipfsData = ipfsResponse.data;
 
                 const dbFullData = {
@@ -127,7 +186,9 @@ const getUserByShareId = async (req, res) => {
                     created_at: ipfsData.created_at
                 };
 
-                const isDataValid = JSON.stringify(dbFullData) === JSON.stringify(ipfsReconstructed);
+                const isDataValid =
+                    JSON.stringify(dbFullData) ===
+                    JSON.stringify(ipfsReconstructed);
 
                 let isCidValid = false;
                 try {
@@ -135,12 +196,10 @@ const getUserByShareId = async (req, res) => {
                     const [txUuid, blockchainCid] = blockchainData.split('.');
                     isCidValid = (blockchainCid === item.cid);
                 } catch (blockchainError) {
-                    console.error(`Blockchain validation error for tx ${item.id}:`, blockchainError.message);
                     isCidValid = false;
                 }
 
                 if (isDataValid && isCidValid) {
-                    // --- UPDATE DISINI: Tambahkan CID & Tx Hash ---
                     verifiedTransactions.push({
                         pengirim: item.sender_name,
                         penerima: item.receiver_name,
@@ -148,17 +207,13 @@ const getUserByShareId = async (req, res) => {
                         nominal: parseFloat(item.amount),
                         pesan: item.message,
                         tipe_pembayaran: item.payment_type,
-                        // Data Bukti Digital
                         bukti_digital: {
-                            ipfs_cid: item.cid,
-                            polygon_tx_hash: item.blockchain_tx_hash,
-                            // Link Verifikasi Langsung
-                            verify_ipfs_url: `https://gateway.pinata.cloud/ipfs/${item.cid}`,
-                            verify_polygon_url: `https://amoy.polygonscan.com/tx/${item.blockchain_tx_hash}`
+                            cid: item.cid,
+                            tx_hash: item.blockchain_tx_hash,
+                            url_ipfs: `https://gateway.pinata.cloud/ipfs/${item.cid}`,
+                            explorer_url: `https://amoy.polygonscan.com/tx/${item.blockchain_tx_hash}`
                         }
                     });
-                } else {
-                    console.log(`Transaction ${item.id} filtered out:`, { dataValid: isDataValid, cidValid: isCidValid });
                 }
 
             } catch (err) {
@@ -167,7 +222,10 @@ const getUserByShareId = async (req, res) => {
         }
 
         const total_transaksi = verifiedTransactions.length;
-        const total_nilai = verifiedTransactions.reduce((sum, item) => sum + item.nominal, 0);
+        const total_nilai = verifiedTransactions.reduce(
+            (sum, item) => sum + item.nominal,
+            0
+        );
 
         res.json({
             success: true,
@@ -176,13 +234,16 @@ const getUserByShareId = async (req, res) => {
                     id: user.id,
                     company_name: user.company_name,
                     email: user.email,
-                    created_at: user.created_at
+                    created_at: user.created_at,
+                    share_enabled: user.share_enabled,
+                    share_id: user.share_id
                 },
                 ringkasan: {
-                    total_transaksi: total_transaksi,
-                    total_nilai: total_nilai
+                    total_transaksi,
+                    total_nilai
                 },
-                transactions: verifiedTransactions
+                transactions: verifiedTransactions,
+                access_type: accessType
             }
         });
 

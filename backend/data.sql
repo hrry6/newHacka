@@ -110,7 +110,7 @@ dcda503b-7596-411f-80c4-55f49c532394	11b54320-319a-4113-8d9a-ff7faed98b06	109dd1
 --
 
 COPY public.users (id, company_name, email, password, share_enabled, share_id, created_at) FROM stdin;
-11b54320-319a-4113-8d9a-ff7faed98b06	Quantaris Labs	admin@quantaris.com	$2a$06$33QGBQ.W//A8iq9EI9sDKOuDk1UhQH0D8ZbSjDqp3l29rVgUEM/4i	f	\N	2026-02-28 10:22:07.607297
+11b54320-319a-4113-8d9a-ff7faed98b06	Quantaris Labs	admin@quantaris.com	$2a$06$33QGBQ.W//A8iq9EI9sDKOuDk1UhQH0D8ZbSjDqp3l29rVgUEM/4i	t	340209fd-e31b-402e-9dbf-df2f46336c93	2026-02-28 10:22:07.607297
 109dd170-7181-4dee-b0f3-1904a515a09a	Nexora Dynamics	contact@nexora.com	$2a$06$OotPXWVUHQ0fNBLD0AQwj.Tgyn0E8tTznmDpuUwoKH7pdKb3LBzwe	t	ce46656c-1e4a-4492-a1eb-ec00d792ffea	2026-02-28 10:22:07.607297
 ec95c3bb-8fa4-4cf2-9ca8-026347344024	Velocita Systems	finance@velocita.com	$2a$06$IxKeu/ymr0Akp3s.27ceNe5xXkRedCyu5H9byOOleBN/o7vN3HQj.	t	3d86fc58-a748-4bfa-bd8b-e741a9197e7c	2026-02-28 10:22:07.607297
 66bf9ac7-8e3e-47f8-bb9d-5af30db8ceda	Toko Maju Jaya	admin@maju.com	$2b$10$OTT8IYLhrgFhnfhqTaXZUeAXxrGKATzZ9F03C8MN.xpPLekqQC7wW	t	8133f017-9431-4267-b740-6a6168e363b1	2026-02-28 16:09:47.223061
