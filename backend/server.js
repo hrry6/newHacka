@@ -17,7 +17,7 @@ app.get('/api/public/share/:shareId', getUserByShareId);
 
 app.post('/api/user/share/generate', authMiddleware, generateShareId);
 app.delete('/api/user/share/delete', authMiddleware, deleteShareId);
-app.post('/api/transactions', authMiddleware, createTransaction);
+app.post('/api/transactions', createTransaction);
 app.get('/api/transactions/user', authMiddleware, getVerifiedTransactions);
 app.post('/api/analyze', authMiddleware, aiAnalyze);
 
