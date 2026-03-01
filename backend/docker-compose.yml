@@ -12,7 +12,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       # Tambahkan baris ini untuk auto-import:
-      - ./backup_mei_2026.sql:/docker-entrypoint-initdb.d/backup.sql
+      - ./data.sql:/docker-entrypoint-initdb.d/backup.sql
 
   backend:
     build: .

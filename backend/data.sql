@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict lwnDDZPB4fHx54sy7kcr0cSnpNlveTJT45tpLS7uzb1O12fsJbFqoLbiqVojUyl
+\restrict A1W0cfEPIWk9To9fMac1gDh6XQSxwBgqZ0qsvqzFEKOCH8OiAEGxNAM3Oz1U9OG
 
 -- Dumped from database version 15.17 (Debian 15.17-1.pgdg13+1)
 -- Dumped by pg_dump version 15.17 (Debian 15.17-1.pgdg13+1)
@@ -101,6 +101,7 @@ ac0b87c8-93ef-4376-be00-696b670065d6	ec95c3bb-8fa4-4cf2-9ca8-026347344024	11b543
 66c55f79-00a6-47f6-8100-6f7fc30e9736	ec95c3bb-8fa4-4cf2-9ca8-026347344024	109dd170-7181-4dee-b0f3-1904a515a09a	2500000.00	VA	Server Rack Component Purchase	{"invoice_no":"INV-004","item":"Hardware Part A","provider":"Paylabs"}	QmeV8iXbSZBbgPvRrabr5dcDPfG1MuCxcv6ZVv47AJvVSr	0xb87a9a09ed36d8f819b405a03e0d02dd5119075bc4b4c863a8a4cf7b2c8afafd	CONFIRMED	2026-02-28 10:40:07.939
 271762fc-dc75-46c9-b5b0-babdd8c7ab1f	11b54320-319a-4113-8d9a-ff7faed98b06	109dd170-7181-4dee-b0f3-1904a515a09a	50000.00	BANK TRANSFER	Cloud Hosting Monthly Payment	{"invoice_no":"INV-005","item":"Cloud VPS High","provider":"Paylabs"}	QmSfSwbv9WYjUsTrKQ8P9BtZC1WC5HbfUi1BTFG3rEPuTc	0x96f27b2a1c90c6cfdebdfb280504746af0777c9f873860e68347cb8461681509	CONFIRMED	2026-02-28 10:40:26.816
 869f9baa-ead7-41d1-9518-0fcc30610ad2	11b54320-319a-4113-8d9a-ff7faed98b06	109dd170-7181-4dee-b0f3-1904a515a09a	3000000.00	VA	App Store Deployment Service	{"invoice_no":"INV-006","item":"Deployment","provider":"Paylabs"}	QmPv2cYqJ4qv5x8mcLKThVmDEdffH77oh5KxPF5w8uHxQm	0x8d90231bb7119bb14d11c15f3733bf71652a90d806b02afb0aebd4053c0f83a8	CONFIRMED	2026-02-28 10:40:42.559
+dcda503b-7596-411f-80c4-55f49c532394	11b54320-319a-4113-8d9a-ff7faed98b06	109dd170-7181-4dee-b0f3-1904a515a09a	5500000.00	CREDIT	UI/UX Design Milestone 1	{"invoice_no":"INV-007","item":"Design System","provider":"Paylabs"}	QmfFEorUwBse87RvhN12dEJqrPuzRiK2xZkfmzAC4AMLLj	0xab6e9fd973575192a8e15321a74e1b554ff98da5bc427f74464b6c6b1f9a8a9d	CONFIRMED	2026-03-01 08:08:29.456
 \.
 
 
@@ -112,6 +113,8 @@ COPY public.users (id, company_name, email, password, share_enabled, share_id, c
 11b54320-319a-4113-8d9a-ff7faed98b06	Quantaris Labs	admin@quantaris.com	$2a$06$33QGBQ.W//A8iq9EI9sDKOuDk1UhQH0D8ZbSjDqp3l29rVgUEM/4i	f	\N	2026-02-28 10:22:07.607297
 109dd170-7181-4dee-b0f3-1904a515a09a	Nexora Dynamics	contact@nexora.com	$2a$06$OotPXWVUHQ0fNBLD0AQwj.Tgyn0E8tTznmDpuUwoKH7pdKb3LBzwe	t	ce46656c-1e4a-4492-a1eb-ec00d792ffea	2026-02-28 10:22:07.607297
 ec95c3bb-8fa4-4cf2-9ca8-026347344024	Velocita Systems	finance@velocita.com	$2a$06$IxKeu/ymr0Akp3s.27ceNe5xXkRedCyu5H9byOOleBN/o7vN3HQj.	t	3d86fc58-a748-4bfa-bd8b-e741a9197e7c	2026-02-28 10:22:07.607297
+66bf9ac7-8e3e-47f8-bb9d-5af30db8ceda	Toko Maju Jaya	admin@maju.com	$2b$10$OTT8IYLhrgFhnfhqTaXZUeAXxrGKATzZ9F03C8MN.xpPLekqQC7wW	t	8133f017-9431-4267-b740-6a6168e363b1	2026-02-28 16:09:47.223061
+6766219b-77ec-47b9-8443-0e354f7b5686	Cihuy PT	cihuy@gmail.com	$2b$10$b8YYZrECZqw/fQbh3JtSfu2FU0N3mDzoyleC4rws5fLR7G0KO7vIa	t	e55b93b5-e3a9-4129-b609-ffa6e7d964da	2026-03-01 01:38:59.163819
 \.
 
 
@@ -167,5 +170,5 @@ ALTER TABLE ONLY public.transactions
 -- PostgreSQL database dump complete
 --
 
-\unrestrict lwnDDZPB4fHx54sy7kcr0cSnpNlveTJT45tpLS7uzb1O12fsJbFqoLbiqVojUyl
+\unrestrict A1W0cfEPIWk9To9fMac1gDh6XQSxwBgqZ0qsvqzFEKOCH8OiAEGxNAM3Oz1U9OG
 

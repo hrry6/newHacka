@@ -1,7 +1,8 @@
 const pool = require('../config/db');
 const axios = require('axios');
 const { getTransactionFromChain } = require('../services/blockchain');
-
+const { uploadToIPFS } = require('../services/pinata'); // <-- GANTI INI
+const { recordOnChain } = require('../services/blockchain');
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const createTransaction = async (req, res) => {
@@ -13,6 +14,7 @@ const createTransaction = async (req, res) => {
 
     const createdAt = new Date().toISOString();
 
+    // 1. Data lengkap ke IPFS
     const fullSnapshot = {
       sender_id,
       receiver_id,
@@ -23,36 +25,26 @@ const createTransaction = async (req, res) => {
       created_at: createdAt
     };
 
+    // 2. Upload ke IPFS dapat CID
     const cid = await uploadToIPFS(fullSnapshot);
 
+    // 3. Simpan ke DB (payload doang yang di-stringify)
     const dbRes = await client.query(
       `INSERT INTO transactions (
-        sender_id, 
-        receiver_id, 
-        amount, 
-        payment_type, 
-        message, 
-        encrypted_payload, 
-        cid, 
-        status, 
-        created_at
-      ) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', $8) RETURNING id`,
+        sender_id, receiver_id, amount, payment_type, 
+        message, encrypted_payload, cid, status, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', $8) RETURNING id`,
       [
-        sender_id, 
-        receiver_id, 
-        amount, 
-        payment_type, 
-        message, 
-        JSON.stringify(payload), 
-        cid, 
-        createdAt
+        sender_id, receiver_id, amount, payment_type, 
+        message, JSON.stringify(payload), cid, createdAt
       ]
     );
     const txUuid = dbRes.rows[0].id;
 
+    // 4. Record ke blockchain (UUID.CID)
     const txHash = await recordOnChain(txUuid, cid);
 
+    // 5. Update hash blockchain
     await client.query(
       `UPDATE transactions SET blockchain_tx_hash = $1, status = 'CONFIRMED' WHERE id = $2`,
       [txHash, txUuid]
