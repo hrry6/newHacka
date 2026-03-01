@@ -5,6 +5,7 @@ const axios = require('axios');
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_123';
+
 const register = async (req, res) => {
     const { company_name, email, password } = req.body;
     try {
@@ -54,81 +55,68 @@ const getUserByShareId = async (req, res) => {
     const client = await pool.connect();
 
     try {
+        // 1. Cek user dengan share_id
         const userQuery = await client.query(
             'SELECT id, company_name, email, created_at FROM users WHERE share_id = $1 AND share_enabled = TRUE',
             [shareId]
         );
 
         if (userQuery.rows.length === 0) {
-            return res.status(404).json({ message: "Public profile not found or disabled" });
+            return res.status(404).json({ 
+                success: false,
+                message: "Public profile not found or disabled" 
+            });
         }
 
         const user = userQuery.rows[0];
 
+        // 2. Ambil transaksi dengan JOIN untuk ambil nama perusahaan
         const txRes = await client.query(
-            `SELECT * FROM transactions 
-             WHERE sender_id = $1 OR receiver_id = $1 
-             ORDER BY created_at DESC`,
+            `SELECT 
+                t.amount,
+                t.message,
+                t.payment_type,
+                t.created_at,
+                sender.company_name as sender_name,
+                receiver.company_name as receiver_name
+            FROM transactions t
+            LEFT JOIN users sender ON t.sender_id = sender.id
+            LEFT JOIN users receiver ON t.receiver_id = receiver.id
+            WHERE t.sender_id = $1 OR t.receiver_id = $1 
+            ORDER BY t.created_at DESC`,
             [user.id]
         );
 
-        const transactions = txRes.rows;
-        const verifiedResults = [];
+        // 3. Format transaksi simpel (tanpa verifikasi IPFS biar cepet)
+        const transactions = txRes.rows.map(item => ({
+            pengirim: item.sender_name,
+            penerima: item.receiver_name,
+            tanggal: item.created_at,
+            nominal: parseFloat(item.amount),
+            pesan: item.message,
+            tipe_pembayaran: item.payment_type
+        }));
 
-        for (const item of transactions) {
-            try {
-                await sleep(500);
-
-                const ipfsResponse = await axios.get(`https://gateway.pinata.cloud/ipfs/${item.cid}`, {
-                    headers: {
-                        'Authorization': `Bearer ${process.env.PINATA_READ_JWT}`
-                    },
-                    timeout: 10000
-                });
-                const ipfsData = ipfsResponse.data;
-
-                const dbPayloadStr = typeof item.encrypted_payload === 'string' 
-                    ? item.encrypted_payload 
-                    : JSON.stringify(item.encrypted_payload);
-                
-                const ipfsPayloadStr = JSON.stringify(ipfsData.payload);
-                const isPayloadValid = ipfsPayloadStr === dbPayloadStr;
-
-                verifiedResults.push({
-                    id: item.id,
-                    amount: item.amount,
-                    sender_id: item.sender_id,
-                    receiver_id: item.receiver_id,
-                    message: item.message,
-                    payload: ipfsData.payload,
-                    cid: item.cid,
-                    tx_hash: item.blockchain_tx_hash,
-                    status: item.status,
-                    verified_status: isPayloadValid ? "VERIFIED" : "INVALID",
-                    created_at: item.created_at
-                });
-
-            } catch (err) {
-                verifiedResults.push({
-                    ...item,
-                    payload: null,
-                    verified_status: "IPFS_ERROR",
-                    error: err.message
-                });
-            }
-        }
-
+        // 4. Return dengan format yang SAMA PERSIS
         res.json({
-            profile: {
-                company_name: user.company_name,
-                email: user.email,
-                joined_at: user.created_at
-            },
-            transactions: verifiedResults
+            success: true,
+            data: {
+                user: {
+                    id: user.id,
+                    company_name: user.company_name,
+                    email: user.email,
+                    created_at: user.created_at
+                },
+                transactions: transactions
+            }
         });
 
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error("Share Error:", err);
+        res.status(500).json({ 
+            success: false,
+            error: err.message 
+        });
     } finally {
         client.release();
     }

@@ -82,76 +82,50 @@ const getVerifiedTransactions = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    // 1. Ambil data transaksi dari Postgres
+    // 1. Ambil data user yang login
+    const userRes = await client.query(
+      `SELECT id, company_name, email, share_enabled, share_id, created_at FROM users WHERE id = $1`,
+      [userId]
+    );
+    const userData = userRes.rows[0];
+
+    // 2. Ambil data transaksi dengan JOIN untuk ambil nama perusahaan
     const dbRes = await client.query(
-      `SELECT * FROM transactions 
-       WHERE sender_id = $1 OR receiver_id = $1 
-       ORDER BY created_at DESC`,
+      `SELECT 
+        t.amount,
+        t.message,
+        t.payment_type,
+        t.created_at,
+        sender.company_name as sender_name,
+        receiver.company_name as receiver_name
+       FROM transactions t
+       LEFT JOIN users sender ON t.sender_id = sender.id
+       LEFT JOIN users receiver ON t.receiver_id = receiver.id
+       WHERE t.sender_id = $1 OR t.receiver_id = $1 
+       ORDER BY t.created_at DESC`,
       [userId]
     );
 
-    const transactions = dbRes.rows;
-    const verifiedResults = [];
-
-    for (const item of transactions) {
-      try {
-        // Sleep untuk menghindari rate limit Pinata
-        await sleep(800);
-
-        // 2. Ambil data pembanding dari IPFS
-        const ipfsResponse = await axios.get(`https://gateway.pinata.cloud/ipfs/${item.cid}`, {
-          headers: {
-            'Authorization': `Bearer ${process.env.PINATA_READ_JWT}`
-          },
-          timeout: 15000
-        });
-        const ipfsData = ipfsResponse.data;
-
-        // 3. Validasi Payload (Integritas Data)
-        const dbPayloadStr = typeof item.encrypted_payload === 'string' 
-          ? item.encrypted_payload 
-          : JSON.stringify(item.encrypted_payload);
-        
-        const ipfsPayloadStr = JSON.stringify(ipfsData.payload);
-        const isPayloadValid = ipfsPayloadStr === dbPayloadStr;
-
-        verifiedResults.push({
-          id: item.id,
-          amount: item.amount,
-          sender_id: item.sender_id,
-          receiver_id: item.receiver_id,
-          message: item.message,
-          payload: ipfsData.payload,
-          cid: item.cid,
-          tx_hash: item.blockchain_tx_hash,
-          verified_status: isPayloadValid ? "VERIFIED" : "INVALID",
-          created_at: item.created_at
-        });
-
-      } catch (err) {
-
-        verifiedResults.push({
-          id: item.id,
-          amount: item.amount,
-          sender_id: item.sender_id,
-          receiver_id: item.receiver_id,
-          message: item.message,
-          payload: null,
-          cid: item.cid,
-          tx_hash: item.blockchain_tx_hash,
-          verified_status: "IPFS_ERROR",
-          created_at: item.created_at
-        });
-      }
-    }
+    // Format transaksi simpel
+    const transactions = dbRes.rows.map(item => ({
+      pengirim: item.sender_name,
+      penerima: item.receiver_name,
+      tanggal: item.created_at,
+      nominal: parseFloat(item.amount),
+      pesan: item.message,
+      tipe_pembayaran: item.payment_type
+    }));
 
     res.status(200).json({
       success: true,
-      count: verifiedResults.length,
-      data: verifiedResults
+      data: {
+        user: userData,
+        transactions: transactions
+      }
     });
 
   } catch (error) {
+    console.error("Error:", error);
     res.status(500).json({ 
       success: false, 
       error: "Internal Server Error" 
