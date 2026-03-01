@@ -77,70 +77,6 @@ const createTransaction = async (req, res) => {
   }
 };
 
-// const getVerifiedTransactions = async (req, res) => {
-//   const userId = req.user.id; 
-//   const client = await pool.connect();
-
-//   try {
-//     const userRes = await client.query(
-//       `SELECT id, company_name, email, share_enabled, share_id, created_at FROM users WHERE id = $1`,
-//       [userId]
-//     );
-//     const userData = userRes.rows[0];
-
-//     const dbRes = await client.query(
-//       `SELECT 
-//         t.amount,
-//         t.message,
-//         t.payment_type,
-//         t.created_at,
-//         sender.company_name as sender_name,
-//         receiver.company_name as receiver_name
-//        FROM transactions t
-//        LEFT JOIN users sender ON t.sender_id = sender.id
-//        LEFT JOIN users receiver ON t.receiver_id = receiver.id
-//        WHERE t.sender_id = $1 OR t.receiver_id = $1 
-//        ORDER BY t.created_at DESC`,
-//       [userId]
-//     );
-
-//     // Format transaksi simpel
-//     const transactions = dbRes.rows.map(item => ({
-//       pengirim: item.sender_name,
-//       penerima: item.receiver_name,
-//       tanggal: item.created_at,
-//       nominal: parseFloat(item.amount),
-//       pesan: item.message,
-//       tipe_pembayaran: item.payment_type
-//     }));
-
-//     // Hitung total transaksi dan total nilai
-//     const total_transaksi = transactions.length;
-//     const total_nilai = transactions.reduce((sum, item) => sum + item.nominal, 0);
-
-//     res.status(200).json({
-//       success: true,
-//       data: {
-//         user: userData,
-//         ringkasan: {
-//           total_transaksi: total_transaksi,
-//           total_nilai: total_nilai
-//         },
-//         transactions: transactions
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error("Error:", error);
-//     res.status(500).json({ 
-//       success: false, 
-//       error: "Internal Server Error" 
-//     });
-//   } finally {
-//     client.release();
-//   }
-// };
-
 const getVerifiedTransactions = async (req, res) => {
   const userId = req.user.id; 
   const client = await pool.connect();
@@ -182,16 +118,14 @@ const getVerifiedTransactions = async (req, res) => {
     for (const item of transactions) {
       try {
         // VALIDASI LAPIS 1: Database vs IPFS
-        await sleep(800); // Hindari rate limit
+        await sleep(800); 
 
-        // Ambil data dari IPFS via CID
         const ipfsResponse = await axios.get(`https://gateway.pinata.cloud/ipfs/${item.cid}`, {
           headers: { 'Authorization': `Bearer ${process.env.PINATA_READ_JWT}` },
           timeout: 15000
         });
         const ipfsData = ipfsResponse.data;
 
-        // Rekonstruksi data DB lengkap
         const dbFullData = {
           sender_id: item.sender_id,
           receiver_id: item.receiver_id,
@@ -202,7 +136,6 @@ const getVerifiedTransactions = async (req, res) => {
           created_at: new Date(item.created_at).toISOString()
         };
 
-        // Rekonstruksi data IPFS
         const ipfsReconstructed = {
           sender_id: ipfsData.sender_id,
           receiver_id: ipfsData.receiver_id,
@@ -218,45 +151,41 @@ const getVerifiedTransactions = async (req, res) => {
         // VALIDASI LAPIS 2: CID Database vs CID Blockchain
         let isCidValid = false;
         try {
-          // Panggil smart contract untuk ambil record berdasarkan txId (UUID transaksi)
-          const blockchainData = await getTransactionFromChain(item.id); // item.id = UUID transaksi
-          
-          // Data dari blockchain formatnya: "UUID.CID"
-          // Contoh: "9bb50aa4-b84f-4b65-a2d3-bfd9c5d6cc4e.QmX2ve6sPwagSz9tCxz8zQAyZEsBX6cipENiDQdE6QSMp7"
+          const blockchainData = await getTransactionFromChain(item.id); 
           const [txUuid, blockchainCid] = blockchainData.split('.');
-          
-          // Validasi: Apakah CID di blockchain sama dengan CID di DB?
           isCidValid = (blockchainCid === item.cid);
-          
         } catch (blockchainError) {
           console.error(`Blockchain validation error for tx ${item.id}:`, blockchainError.message);
           isCidValid = false;
         }
 
-        // KEDUA validasi harus TRUE baru transaksi dianggap VERIFIED
+        // Jika lolos verifikasi, masukkan ke array dengan CID & Tx Hash
         if (isDataValid && isCidValid) {
           verifiedTransactions.push({
+            id: item.id,
             pengirim: item.sender_name,
             penerima: item.receiver_name,
             tanggal: item.created_at,
             nominal: parseFloat(item.amount),
             pesan: item.message,
-            tipe_pembayaran: item.payment_type
+            tipe_pembayaran: item.payment_type,
+            // --- DATA TAMBAHAN UNTUK USER ---
+            bukti_digital: {
+              cid: item.cid,
+              tx_hash: item.blockchain_tx_hash,
+              url_ipfs: `https://gateway.pinata.cloud/ipfs/${item.cid}`,
+              url_polygonscan: `https://amoy.polygonscan.com/tx/${item.blockchain_tx_hash}`
+            }
           });
         } else {
-          console.log(`Transaction ${item.id} filtered out:`, {
-            dataValid: isDataValid,
-            cidValid: isCidValid
-          });
+          console.log(`Transaction ${item.id} filtered out:`, { dataValid: isDataValid, cidValid: isCidValid });
         }
 
       } catch (err) {
         console.error(`Validation error for transaction ${item.id}:`, err.message);
-        // Transaksi dengan error validasi TIDAK dimasukkan ke response
       }
     }
 
-    // Hitung total dari transaksi yang TERVERIFIKASI saja
     const total_transaksi = verifiedTransactions.length;
     const total_nilai = verifiedTransactions.reduce((sum, item) => sum + item.nominal, 0);
 
@@ -274,10 +203,7 @@ const getVerifiedTransactions = async (req, res) => {
 
   } catch (error) {
     console.error("Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      error: "Internal Server Error" 
-    });
+    res.status(500).json({ success: false, error: "Internal Server Error" });
   } finally {
     client.release();
   }

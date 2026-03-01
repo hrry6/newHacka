@@ -71,7 +71,7 @@ const getUserByShareId = async (req, res) => {
 
         const user = userQuery.rows[0];
 
-        // 2. Ambil semua transaksi user dengan data lengkap untuk validasi
+        // 2. Ambil semua transaksi user
         const txRes = await client.query(
             `SELECT 
                 t.id,
@@ -132,30 +132,33 @@ const getUserByShareId = async (req, res) => {
                 let isCidValid = false;
                 try {
                     const blockchainData = await getTransactionFromChain(item.id);
-                    
                     const [txUuid, blockchainCid] = blockchainData.split('.');
-                    
                     isCidValid = (blockchainCid === item.cid);
-                    
                 } catch (blockchainError) {
                     console.error(`Blockchain validation error for tx ${item.id}:`, blockchainError.message);
                     isCidValid = false;
                 }
 
                 if (isDataValid && isCidValid) {
+                    // --- UPDATE DISINI: Tambahkan CID & Tx Hash ---
                     verifiedTransactions.push({
                         pengirim: item.sender_name,
                         penerima: item.receiver_name,
                         tanggal: item.created_at,
                         nominal: parseFloat(item.amount),
                         pesan: item.message,
-                        tipe_pembayaran: item.payment_type
+                        tipe_pembayaran: item.payment_type,
+                        // Data Bukti Digital
+                        bukti_digital: {
+                            ipfs_cid: item.cid,
+                            polygon_tx_hash: item.blockchain_tx_hash,
+                            // Link Verifikasi Langsung
+                            verify_ipfs_url: `https://gateway.pinata.cloud/ipfs/${item.cid}`,
+                            verify_polygon_url: `https://amoy.polygonscan.com/tx/${item.blockchain_tx_hash}`
+                        }
                     });
                 } else {
-                    console.log(`Transaction ${item.id} filtered out:`, {
-                        dataValid: isDataValid,
-                        cidValid: isCidValid
-                    });
+                    console.log(`Transaction ${item.id} filtered out:`, { dataValid: isDataValid, cidValid: isCidValid });
                 }
 
             } catch (err) {
@@ -185,10 +188,7 @@ const getUserByShareId = async (req, res) => {
 
     } catch (err) {
         console.error("Share Error:", err);
-        res.status(500).json({ 
-            success: false,
-            error: err.message 
-        });
+        res.status(500).json({ success: false, error: err.message });
     } finally {
         client.release();
     }
