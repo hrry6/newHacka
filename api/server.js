@@ -1,10 +1,10 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { register, login, generateShareId, deleteShareId, getUserByShareId } = require('./src/controllers/authController');
-const { createTransaction, getVerifiedTransactions } = require('./src/controllers/transactionController');
+const { register, login, generateShareId, deleteShareId, getUserByShareId } = require('./src/controllers/authController.js');
+const { createTransaction, getVerifiedTransactions } = require('./src/controllers/transactionController.js');
 const { aiAnalyze } = require('./src/controllers/analyzeController.js');
-const authMiddleware = require('./src/middleware/authMiddleware');
+const authMiddleware = require('./src/middleware/authMiddleware.js');
 
 const app = express();
 app.use(cors());

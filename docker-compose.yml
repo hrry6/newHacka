@@ -11,16 +11,16 @@ services:
       POSTGRES_DB: payment_db
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./backend/data.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./api/data.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - payment-network
 
-  backend:
-    build: ./backend
-    container_name: payment_backend
+  api:
+    build: ./api
+    container_name: payment_api
     restart: always
     env_file:
-      - ./backend/.env
+      - ./api/.env
     ports:
       - "5000:5000"
     depends_on:
@@ -28,14 +28,14 @@ services:
     networks:
       - payment-network
 
-  frontend:
-    build: ./frontend
-    container_name: payment_frontend
+  web:
+    build: ./web
+    container_name: payment_web
     restart: always
     ports:
       - "80:80"
     depends_on:
-      - backend
+      - api
     networks:
       - payment-network
 
