@@ -27,13 +27,30 @@ const recordOnChain = async (uuid, cid) => {
   }
 };
 
-// Fungsi ini tidak lagi digunakan untuk verifikasi
-const getTransactionFromChain = async (uuid) => {
-  console.log(`⏭️  Skipping blockchain verification for ${uuid} (using DB + IPFS only)`);
-  return { 
-    success: true, 
-    cid: null 
-  };
+
+const getTransactionFromChain = async (txUuid) => {
+  try {
+    // Koneksi ke provider (Amoy)
+    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+    
+    // Inisialisasi contract
+    const contract = new ethers.Contract(
+      process.env.CONTRACT_ADDRESS,
+      ['function getRecord(string memory _txId) public view returns (string memory cid, uint256 timestamp)'],
+      provider
+    );
+    
+    // Panggil function getRecord dengan txUuid
+    const record = await contract.getRecord(txUuid);
+    
+    // Format return: "UUID.CID" (sesuai dengan data yang disimpan)
+    return `${txUuid}.${record.cid}`;
+    
+  } catch (error) {
+    console.error("Blockchain fetch error:", error);
+    throw new Error(`Failed to fetch from blockchain: ${error.message}`);
+  }
 };
+
 
 module.exports = { getTransactionFromChain, recordOnChain };

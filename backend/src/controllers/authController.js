@@ -55,6 +55,7 @@ const getUserByShareId = async (req, res) => {
     const client = await pool.connect();
 
     try {
+        // 1. Cek user dengan share_id
         const userQuery = await client.query(
             'SELECT id, company_name, email, created_at FROM users WHERE share_id = $1 AND share_enabled = TRUE',
             [shareId]
@@ -69,14 +70,21 @@ const getUserByShareId = async (req, res) => {
 
         const user = userQuery.rows[0];
 
+        // 2. Ambil semua transaksi user dengan data lengkap untuk validasi
         const txRes = await client.query(
             `SELECT 
+                t.id,
                 t.amount,
                 t.message,
                 t.payment_type,
+                t.encrypted_payload,
+                t.cid,
+                t.blockchain_tx_hash,
                 t.created_at,
                 sender.company_name as sender_name,
-                receiver.company_name as receiver_name
+                sender.id as sender_id,
+                receiver.company_name as receiver_name,
+                receiver.id as receiver_id
             FROM transactions t
             LEFT JOIN users sender ON t.sender_id = sender.id
             LEFT JOIN users receiver ON t.receiver_id = receiver.id
@@ -85,17 +93,77 @@ const getUserByShareId = async (req, res) => {
             [user.id]
         );
 
-        const transactions = txRes.rows.map(item => ({
-            pengirim: item.sender_name,
-            penerima: item.receiver_name,
-            tanggal: item.created_at,
-            nominal: parseFloat(item.amount),
-            pesan: item.message,
-            tipe_pembayaran: item.payment_type
-        }));
+        const transactions = txRes.rows;
+        const verifiedTransactions = [];
 
-        const total_transaksi = transactions.length;
-        const total_nilai = transactions.reduce((sum, item) => sum + item.nominal, 0);
+        for (const item of transactions) {
+            try {
+                await sleep(800);
+
+                const ipfsResponse = await axios.get(`https://gateway.pinata.cloud/ipfs/${item.cid}`, {
+                    headers: { 'Authorization': `Bearer ${process.env.PINATA_READ_JWT}` },
+                    timeout: 15000
+                });
+                const ipfsData = ipfsResponse.data;
+
+                const dbFullData = {
+                    sender_id: item.sender_id,
+                    receiver_id: item.receiver_id,
+                    amount: parseFloat(item.amount),
+                    payment_type: item.payment_type,
+                    message: item.message,
+                    payload: JSON.parse(item.encrypted_payload),
+                    created_at: new Date(item.created_at).toISOString()
+                };
+
+                const ipfsReconstructed = {
+                    sender_id: ipfsData.sender_id,
+                    receiver_id: ipfsData.receiver_id,
+                    amount: ipfsData.amount,
+                    payment_type: ipfsData.payment_type,
+                    message: ipfsData.message,
+                    payload: ipfsData.payload,
+                    created_at: ipfsData.created_at
+                };
+
+                const isDataValid = JSON.stringify(dbFullData) === JSON.stringify(ipfsReconstructed);
+
+                let isCidValid = false;
+                try {
+                    const blockchainData = await getTransactionFromChain(item.id);
+                    
+                    const [txUuid, blockchainCid] = blockchainData.split('.');
+                    
+                    isCidValid = (blockchainCid === item.cid);
+                    
+                } catch (blockchainError) {
+                    console.error(`Blockchain validation error for tx ${item.id}:`, blockchainError.message);
+                    isCidValid = false;
+                }
+
+                if (isDataValid && isCidValid) {
+                    verifiedTransactions.push({
+                        pengirim: item.sender_name,
+                        penerima: item.receiver_name,
+                        tanggal: item.created_at,
+                        nominal: parseFloat(item.amount),
+                        pesan: item.message,
+                        tipe_pembayaran: item.payment_type
+                    });
+                } else {
+                    console.log(`Transaction ${item.id} filtered out:`, {
+                        dataValid: isDataValid,
+                        cidValid: isCidValid
+                    });
+                }
+
+            } catch (err) {
+                console.error(`Validation error for transaction ${item.id}:`, err.message);
+            }
+        }
+
+        const total_transaksi = verifiedTransactions.length;
+        const total_nilai = verifiedTransactions.reduce((sum, item) => sum + item.nominal, 0);
 
         res.json({
             success: true,
@@ -110,7 +178,7 @@ const getUserByShareId = async (req, res) => {
                     total_transaksi: total_transaksi,
                     total_nilai: total_nilai
                 },
-                transactions: transactions
+                transactions: verifiedTransactions
             }
         });
 
