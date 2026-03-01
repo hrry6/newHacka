@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const axios = require('axios');
 
+const { getTransactionFromChain } = require('../services/blockchain');
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_123';
 
